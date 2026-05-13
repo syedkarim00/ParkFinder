@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ParkFinder – Ontario Parks waterfront weekend scanner</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Ontario Parks availability helper</p>
+        <h1>Find Friday–Sunday campsites with a waterfront bias.</h1>
+        <p class="lede">ParkFinder checks Ontario Parks reservation API availability for every complete Friday-to-Sunday weekend in your summer range, decodes campsite attributes, and ranks sites that appear adjacent to lakes, rivers, shorelines, beaches, or other bodies of water.</p>
+      </div>
+      <a class="official" href="https://reservations.ontarioparks.ca/" target="_blank" rel="noreferrer">Open official reservation site</a>
+    </section>
+
+    <section class="panel">
+      <form id="search-form">
+        <div class="grid two">
+          <label>Start date
+            <input id="startDate" name="startDate" type="date" required />
+          </label>
+          <label>End date
+            <input id="endDate" name="endDate" type="date" required />
+          </label>
+        </div>
+
+        <label>Ontario Parks result URLs or resourceLocationIds
+          <textarea id="locations" name="locations" rows="6" placeholder="Paste one official result URL per line after choosing a park on reservations.ontarioparks.ca, or enter rows like: Bon Echo|-214748....|-214748...."></textarea>
+        </label>
+        <p class="hint">Tip: the most reliable workflow is to choose parks on the official reservation site once, paste their result URLs here, then let ParkFinder scan all Friday–Sunday weekends.</p>
+
+        <fieldset>
+          <legend>Optional presets</legend>
+          <div id="presets" class="chips"></div>
+        </fieldset>
+
+        <details>
+          <summary>Advanced search settings</summary>
+          <div class="grid four">
+            <label>Party size
+              <input id="partySize" name="partySize" type="number" min="1" max="6" value="4" />
+            </label>
+            <label>Equipment ID
+              <input id="equipmentId" name="equipmentId" value="-32768" />
+            </label>
+            <label>Sub-equipment ID
+              <input id="subEquipmentId" name="subEquipmentId" value="-32766" />
+            </label>
+            <label>Max results
+              <input id="maxResults" name="maxResults" type="number" value="200" min="1" max="1000" />
+            </label>
+          </div>
+          <label class="inline"><input id="waterFirst" type="checkbox" checked /> Only show sites with water-adjacent signals</label>
+          <p class="hint">Defaults mirror common car-camping searches. If your equipment differs, start a matching official search and paste that URL so the generated booking links are close to your needs.</p>
+        </details>
+
+        <button id="submit" type="submit">Scan summer weekends</button>
+      </form>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+    <section id="summary" class="summary" hidden></section>
+    <section id="results" class="results"></section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
