@@ -44,6 +44,21 @@ python3 -m parkfinder.playwright_recorder \
   --click-resource -2147474194
 ```
 
+To slow the replay down further, increase `--step-pause-ms` and `--settle-ms`:
+
+```bash
+python3 -m parkfinder.playwright_recorder --use-codegen-flow --step-pause-ms 1500 --settle-ms 4000
+```
+
+To repeat the same recorded flow across multiple Friday-to-Sunday weekends and parks, use `--weekend-count` and repeat `--extra-park`:
+
+```bash
+python3 -m parkfinder.playwright_recorder \
+  --use-codegen-flow \
+  --weekend-count 3 \
+  --extra-park "Bon Echo"
+```
+
 If Ontario Parks changes labels or layout, regenerate selectors with `python3 -m playwright codegen https://reservations.ontarioparks.ca/` and update the replay flow.
 
 ## Optional local UI

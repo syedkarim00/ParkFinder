@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -28,6 +29,8 @@ class CodegenSearchConfig:
     departure: str = "2026-06-07"
     equipment_name: str = "Single Tent"
     resource_ids: tuple[str, ...] = field(default_factory=tuple)
+    settle_ms: int = 1500
+    step_pause_ms: int = 700
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,7 @@ class RecorderConfig:
     timeout_ms: int = 60000
     manual: bool = True
     keywords: tuple[str, ...] = DEFAULT_KEYWORDS
-    codegen_search: CodegenSearchConfig | None = None
+    codegen_searches: tuple[CodegenSearchConfig, ...] = field(default_factory=tuple)
 
 
 def is_interesting_url(url: str, keywords: Iterable[str] = DEFAULT_KEYWORDS) -> bool:
@@ -62,6 +65,26 @@ def next_month_button_name(value: str) -> str:
 
 def resource_icon_selector(resource_id: str) -> str:
     return f'[id="resourceSvg[{resource_id}]"] > .icon-shape'
+
+
+def add_days(value: str, days: int) -> str:
+    return (date.fromisoformat(value) + timedelta(days=days)).isoformat()
+
+
+def make_weekend_searches(parks: Iterable[str], first_friday: str, count: int, equipment: str) -> list[CodegenSearchConfig]:
+    searches: list[CodegenSearchConfig] = []
+    for park in parks:
+        for index in range(count):
+            arrival = add_days(first_friday, index * 7)
+            searches.append(
+                CodegenSearchConfig(
+                    park_name=park,
+                    arrival=arrival,
+                    departure=add_days(arrival, 2),
+                    equipment_name=equipment,
+                )
+            )
+    return searches
 
 
 def summarize_visible_text(body_text: str) -> dict[str, Any]:
@@ -87,24 +110,47 @@ def load_playwright():
     return sync_playwright, PlaywrightTimeoutError
 
 
+def select_arrival_month(page, search: CodegenSearchConfig) -> None:
+    target_name = next_month_button_name(search.arrival)
+    for _ in range(12):
+        target = page.get_by_role("button", name=target_name)
+        if target.count() and target.first.is_visible():
+            slow_click(page, target, search, target_name)
+            return
+        slow_click(page, page.get_by_role("button", name=re.compile(r"View next month")).first, search, "next month")
+    raise RuntimeError(f"Could not reach calendar month for {search.arrival}")
+
+
+def slow_click(page, locator, search: CodegenSearchConfig, description: str) -> None:
+    locator.wait_for(state="visible", timeout=30000)
+    locator.scroll_into_view_if_needed(timeout=10000)
+    page.wait_for_timeout(search.step_pause_ms)
+    locator.click(timeout=30000)
+    page.wait_for_timeout(search.step_pause_ms)
+    print(f"Clicked {description}")
+
+
 def run_codegen_search(page, search: CodegenSearchConfig) -> None:
     """Replay the selector flow produced by Playwright codegen for Ontario Parks.
 
     This keeps Ontario Parks access inside Chromium. These selectors came from the user-recorded
     codegen flow and may need to be regenerated if the site changes.
     """
-    page.locator(".mat-mdc-select-arrow > svg").first.click()
-    page.get_by_role("option", name=search.park_name).click()
-    page.get_by_label("Arrival").click()
-    page.get_by_role("button", name=next_month_button_name(search.arrival)).click()
-    page.get_by_role("button", name=date_button_name(search.arrival)).click()
-    page.get_by_role("button", name=date_button_name(search.departure)).click()
-    page.locator("#mat-select-value-0").click()
-    page.get_by_role("option", name=search.equipment_name).click()
-    page.get_by_label("Search for availability").click()
-    page.wait_for_load_state("networkidle", timeout=30000)
+    print(f"Running search: {search.park_name}, {search.arrival} to {search.departure}, {search.equipment_name}")
+    slow_click(page, page.locator(".mat-mdc-select-arrow > svg").first, search, "park dropdown")
+    slow_click(page, page.get_by_role("option", name=search.park_name), search, f"park option {search.park_name}")
+    slow_click(page, page.get_by_label("Arrival"), search, "arrival field")
+    select_arrival_month(page, search)
+    slow_click(page, page.get_by_role("button", name=date_button_name(search.arrival)), search, f"arrival {search.arrival}")
+    slow_click(page, page.get_by_role("button", name=date_button_name(search.departure)), search, f"departure {search.departure}")
+    slow_click(page, page.locator("#mat-select-value-0"), search, "equipment dropdown")
+    slow_click(page, page.get_by_role("option", name=search.equipment_name), search, f"equipment {search.equipment_name}")
+    slow_click(page, page.get_by_label("Search for availability"), search, "search button")
+    page.wait_for_load_state("networkidle", timeout=60000)
+    page.wait_for_timeout(search.settle_ms)
     for resource_id in search.resource_ids:
-        page.locator(resource_icon_selector(resource_id)).click(timeout=10000)
+        slow_click(page, page.locator(resource_icon_selector(resource_id)), search, f"resource {resource_id}")
+        page.wait_for_timeout(search.settle_ms)
 
 
 def run_recorder(config: RecorderConfig) -> dict[str, Any]:
@@ -161,8 +207,12 @@ def run_recorder(config: RecorderConfig) -> dict[str, Any]:
             response = page.goto(config.start_url, wait_until="domcontentloaded", timeout=config.timeout_ms)
             print("Page status:", response.status if response else "No response")
             print("Page title:", page.title())
-            if config.codegen_search:
-                run_codegen_search(page, config.codegen_search)
+            if config.codegen_searches:
+                for index, search in enumerate(config.codegen_searches, start=1):
+                    if index > 1:
+                        page.goto(config.start_url, wait_until="domcontentloaded", timeout=config.timeout_ms)
+                        page.wait_for_timeout(search.settle_ms)
+                    run_codegen_search(page, search)
             elif config.manual:
                 input("Complete an Ontario Parks search in Chromium, then press Enter here to save results...")
             else:
@@ -209,16 +259,40 @@ def parse_args() -> RecorderConfig:
     parser.add_argument("--departure", default="2026-06-07", help="Departure date for --use-codegen-flow, YYYY-MM-DD.")
     parser.add_argument("--equipment", default="Single Tent", help="Equipment option name for --use-codegen-flow.")
     parser.add_argument("--click-resource", action="append", default=[], help="Optional resource ID to click after searching; repeat for multiple IDs.")
+    parser.add_argument("--settle-ms", type=int, default=2000, help="Pause after search/results actions in the recorded flow.")
+    parser.add_argument("--step-pause-ms", type=int, default=900, help="Pause before/after every replayed click in the recorded flow.")
+    parser.add_argument("--weekend-count", type=int, default=1, help="Number of Friday-Sunday weekends to repeat, starting at --arrival.")
+    parser.add_argument("--extra-park", action="append", default=[], help="Additional park option to scan with the same weekend series; repeat for multiple parks.")
     args = parser.parse_args()
-    codegen_search = None
+    codegen_searches: tuple[CodegenSearchConfig, ...] = ()
     if args.use_codegen_flow:
-        codegen_search = CodegenSearchConfig(
-            park_name=args.park,
-            arrival=args.arrival,
-            departure=args.departure,
-            equipment_name=args.equipment,
-            resource_ids=tuple(args.click_resource),
-        )
+        if args.weekend_count > 1 or args.extra_park:
+            parks = (args.park, *args.extra_park)
+            generated = make_weekend_searches(parks, args.arrival, args.weekend_count, args.equipment)
+            codegen_searches = tuple(
+                CodegenSearchConfig(
+                    park_name=search.park_name,
+                    arrival=search.arrival,
+                    departure=search.departure,
+                    equipment_name=search.equipment_name,
+                    resource_ids=tuple(args.click_resource),
+                    settle_ms=args.settle_ms,
+                    step_pause_ms=args.step_pause_ms,
+                )
+                for search in generated
+            )
+        else:
+            codegen_searches = (
+                CodegenSearchConfig(
+                    park_name=args.park,
+                    arrival=args.arrival,
+                    departure=args.departure,
+                    equipment_name=args.equipment,
+                    resource_ids=tuple(args.click_resource),
+                    settle_ms=args.settle_ms,
+                    step_pause_ms=args.step_pause_ms,
+                ),
+            )
     return RecorderConfig(
         start_url=args.start_url,
         output_path=args.output,
@@ -228,9 +302,9 @@ def parse_args() -> RecorderConfig:
         headless=args.headless,
         slow_mo_ms=args.slow_mo,
         timeout_ms=args.timeout,
-        manual=not args.headless and codegen_search is None,
+        manual=not args.headless and not codegen_searches,
         keywords=tuple(args.keywords) if args.keywords else DEFAULT_KEYWORDS,
-        codegen_search=codegen_search,
+        codegen_searches=codegen_searches,
     )
 
 
