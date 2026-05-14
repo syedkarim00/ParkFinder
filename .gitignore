@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+.DS_Store
+results/*.json
+captures/
+screenshots/
+state/
+debug-*.png
+latest-results.png
+timeout-debug.png

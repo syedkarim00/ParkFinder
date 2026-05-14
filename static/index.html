@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ParkFinder – Ontario Parks summer weekend scanner</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Ontario Parks availability helper</p>
+        <h1>Scan every park for every summer weekend.</h1>
+        <p class="lede">ParkFinder now starts with a Playwright browser recorder: open the real Ontario Parks site, complete one normal search, and capture screenshots, visible page text, browser state, and the JSON responses the browser naturally received.</p>
+      </div>
+      <a class="official" href="https://reservations.ontarioparks.ca/" target="_blank" rel="noreferrer">Open official reservation site</a>
+    </section>
+
+    <section class="panel recorder">
+      <h2>Recommended first step: browser recorder</h2>
+      <p>Run this in your terminal, complete a normal Ontario Parks search in the browser that opens, then press Enter in the terminal. This avoids starting with brittle direct API calls and gives us real selectors/JSON to automate next.</p>
+      <pre><code>python3 -m pip install -r requirements.txt
+python3 -m playwright install chromium
+python3 -m parkfinder.playwright_recorder</code></pre>
+      <p class="hint">Outputs: <code>captures/captured-responses.json</code>, <code>captures/latest-page-text.txt</code>, <code>screenshots/debug-results.png</code>, and <code>state/ontario-parks-browser-state.json</code>.</p>
+    </section>
+
+    <section class="panel">
+      <form id="search-form">
+        <fieldset>
+          <legend>What should ParkFinder scan?</legend>
+          <label class="radio"><input type="radio" name="scanMode" value="all" checked /> Every reservable Ontario Parks campground</label>
+          <label class="radio"><input type="radio" name="scanMode" value="selected" /> Only the pasted/preset parks below</label>
+          <p class="hint">This direct scanner remains available, but the Playwright recorder above is the better first step when the site rejects direct Python requests.</p>
+        </fieldset>
+
+        <div class="grid two">
+          <label>Start date
+            <input id="startDate" name="startDate" type="date" required />
+          </label>
+          <label>End date
+            <input id="endDate" name="endDate" type="date" required />
+          </label>
+        </div>
+
+        <label>Optional Ontario Parks result URLs or resourceLocationIds
+          <textarea id="locations" name="locations" rows="5" placeholder="Only needed for selected-parks scans. Paste one official result URL per line, or enter rows like: Bon Echo|-214748....|-214748...."></textarea>
+        </label>
+
+        <fieldset>
+          <legend>Optional selected-park presets</legend>
+          <div id="presets" class="chips"></div>
+        </fieldset>
+
+        <details>
+          <summary>Advanced search settings</summary>
+          <div class="grid four">
+            <label>Party size
+              <input id="partySize" name="partySize" type="number" min="1" max="6" value="4" />
+            </label>
+            <label>Equipment ID
+              <input id="equipmentId" name="equipmentId" value="-32768" />
+            </label>
+            <label>Sub-equipment ID
+              <input id="subEquipmentId" name="subEquipmentId" value="-32766" />
+            </label>
+            <label>Max results
+              <input id="maxResults" name="maxResults" type="number" value="5000" min="1" max="50000" />
+            </label>
+            <label>Request pause (seconds)
+              <input id="pauseSeconds" name="pauseSeconds" type="number" value="0.5" min="0.12" step="0.1" />
+            </label>
+          </div>
+          <label class="inline"><input id="waterFirst" type="checkbox" checked /> Only show sites with water-adjacent signals</label>
+          <p class="hint">Disable the water filter to see all available campsites. Official booking pages should still be used to verify campsite maps and final availability.</p>
+        </details>
+
+        <button id="submit" type="submit">Scan June–September weekends</button>
+      </form>
+    </section>
+
+    <section class="panel note">
+      <h2>What if the scan shows HTTP 403?</h2>
+      <p>A 403 means Ontario Parks, or a network service in front of it, refused the automated request. ParkFinder will not try to bypass traffic protection. Use the official reservation website, ask Ontario Parks about approved data access, or switch to a smaller selected-parks scan with a slower request pause if their terms allow automated personal use.</p>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+    <section id="summary" class="summary" hidden></section>
+    <section id="results" class="results"></section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
