@@ -2,7 +2,7 @@ import unittest
 from datetime import date
 
 from parkfinder.ontario import friday_to_sunday_weekends, summarize_captured_text, water_score
-from parkfinder.playwright_recorder import is_interesting_url, summarize_visible_text
+from parkfinder.playwright_recorder import date_button_name, is_interesting_url, resource_icon_selector, summarize_visible_text
 from parkfinder.server import explain_error
 
 
@@ -30,6 +30,11 @@ class ParkFinderHelpersTest(unittest.TestCase):
     def test_playwright_recorder_filters_interesting_urls(self):
         self.assertTrue(is_interesting_url("https://example.test/api/availability/search"))
         self.assertFalse(is_interesting_url("https://example.test/static/app.js"))
+
+
+    def test_codegen_helpers_match_recorded_selectors(self):
+        self.assertEqual(date_button_name("2026-06-05"), "June 5,")
+        self.assertEqual(resource_icon_selector("-2147474195"), '[id="resourceSvg[-2147474195]"] > .icon-shape')
 
     def test_playwright_recorder_summarizes_visible_text(self):
         summary = summarize_visible_text("Site 42 is available for this campsite search")

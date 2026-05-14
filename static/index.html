@@ -26,6 +26,19 @@ python3 -m parkfinder.playwright_recorder</code></pre>
       <p class="hint">The recorder writes <code>captured-responses.json</code>, <code>results-text.txt</code>, <code>results.png</code>, and <code>browser-state.json</code>.</p>
     </section>
 
+    <section class="panel recorder">
+      <h2>Replay your codegen flow</h2>
+      <p>The Algonquin - Kiosk / June 5-7 / Single Tent selectors you recorded can be replayed with:</p>
+      <pre><code>python3 -m parkfinder.playwright_recorder \
+  --use-codegen-flow \
+  --park "Algonquin - Kiosk" \
+  --arrival 2026-06-05 \
+  --departure 2026-06-07 \
+  --equipment "Single Tent" \
+  --click-resource -2147474195 \
+  --click-resource -2147474194</code></pre>
+    </section>
+
     <section class="panel note">
       <h2>No direct Python scraping</h2>
       <p>This version does not call hidden Ontario Parks API URLs from Python HTTP clients. The Python code only listens to responses received by the Playwright-controlled browser via <code>page.on("response")</code>.</p>

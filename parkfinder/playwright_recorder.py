@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -21,6 +22,15 @@ DEFAULT_KEYWORDS = (
 
 
 @dataclass(frozen=True)
+class CodegenSearchConfig:
+    park_name: str = "Algonquin - Kiosk"
+    arrival: str = "2026-06-05"
+    departure: str = "2026-06-07"
+    equipment_name: str = "Single Tent"
+    resource_ids: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class RecorderConfig:
     start_url: str = START_URL
     output_path: Path = Path("captured-responses.json")
@@ -32,11 +42,26 @@ class RecorderConfig:
     timeout_ms: int = 60000
     manual: bool = True
     keywords: tuple[str, ...] = DEFAULT_KEYWORDS
+    codegen_search: CodegenSearchConfig | None = None
 
 
 def is_interesting_url(url: str, keywords: Iterable[str] = DEFAULT_KEYWORDS) -> bool:
     lower_url = url.lower()
     return any(keyword.lower() in lower_url for keyword in keywords)
+
+
+def date_button_name(value: str) -> str:
+    parsed = date.fromisoformat(value)
+    return f"{parsed.strftime('%B')} {parsed.day},"
+
+
+def next_month_button_name(value: str) -> str:
+    parsed = date.fromisoformat(value)
+    return f"View next month, {parsed.strftime('%B')}"
+
+
+def resource_icon_selector(resource_id: str) -> str:
+    return f'[id="resourceSvg[{resource_id}]"] > .icon-shape'
 
 
 def summarize_visible_text(body_text: str) -> dict[str, Any]:
@@ -60,6 +85,26 @@ def load_playwright():
             "and then `python3 -m playwright install chromium`."
         ) from exc
     return sync_playwright, PlaywrightTimeoutError
+
+
+def run_codegen_search(page, search: CodegenSearchConfig) -> None:
+    """Replay the selector flow produced by Playwright codegen for Ontario Parks.
+
+    This keeps Ontario Parks access inside Chromium. These selectors came from the user-recorded
+    codegen flow and may need to be regenerated if the site changes.
+    """
+    page.locator(".mat-mdc-select-arrow > svg").first.click()
+    page.get_by_role("option", name=search.park_name).click()
+    page.get_by_label("Arrival").click()
+    page.get_by_role("button", name=next_month_button_name(search.arrival)).click()
+    page.get_by_role("button", name=date_button_name(search.arrival)).click()
+    page.get_by_role("button", name=date_button_name(search.departure)).click()
+    page.locator("#mat-select-value-0").click()
+    page.get_by_role("option", name=search.equipment_name).click()
+    page.get_by_label("Search for availability").click()
+    page.wait_for_load_state("networkidle", timeout=30000)
+    for resource_id in search.resource_ids:
+        page.locator(resource_icon_selector(resource_id)).click(timeout=10000)
 
 
 def run_recorder(config: RecorderConfig) -> dict[str, Any]:
@@ -116,7 +161,9 @@ def run_recorder(config: RecorderConfig) -> dict[str, Any]:
             response = page.goto(config.start_url, wait_until="domcontentloaded", timeout=config.timeout_ms)
             print("Page status:", response.status if response else "No response")
             print("Page title:", page.title())
-            if config.manual:
+            if config.codegen_search:
+                run_codegen_search(page, config.codegen_search)
+            elif config.manual:
                 input("Complete an Ontario Parks search in Chromium, then press Enter here to save results...")
             else:
                 page.wait_for_load_state("networkidle", timeout=config.timeout_ms)
@@ -156,7 +203,22 @@ def parse_args() -> RecorderConfig:
     parser.add_argument("--slow-mo", type=int, default=150)
     parser.add_argument("--timeout", type=int, default=60000)
     parser.add_argument("--keyword", action="append", dest="keywords", help="URL keyword to capture; repeat for multiple keywords.")
+    parser.add_argument("--use-codegen-flow", action="store_true", help="Run the recorded Algonquin/Kiosk search flow instead of waiting for manual input.")
+    parser.add_argument("--park", default="Algonquin - Kiosk", help="Park option name for --use-codegen-flow.")
+    parser.add_argument("--arrival", default="2026-06-05", help="Arrival date for --use-codegen-flow, YYYY-MM-DD.")
+    parser.add_argument("--departure", default="2026-06-07", help="Departure date for --use-codegen-flow, YYYY-MM-DD.")
+    parser.add_argument("--equipment", default="Single Tent", help="Equipment option name for --use-codegen-flow.")
+    parser.add_argument("--click-resource", action="append", default=[], help="Optional resource ID to click after searching; repeat for multiple IDs.")
     args = parser.parse_args()
+    codegen_search = None
+    if args.use_codegen_flow:
+        codegen_search = CodegenSearchConfig(
+            park_name=args.park,
+            arrival=args.arrival,
+            departure=args.departure,
+            equipment_name=args.equipment,
+            resource_ids=tuple(args.click_resource),
+        )
     return RecorderConfig(
         start_url=args.start_url,
         output_path=args.output,
@@ -166,8 +228,9 @@ def parse_args() -> RecorderConfig:
         headless=args.headless,
         slow_mo_ms=args.slow_mo,
         timeout_ms=args.timeout,
-        manual=not args.headless,
+        manual=not args.headless and codegen_search is None,
         keywords=tuple(args.keywords) if args.keywords else DEFAULT_KEYWORDS,
+        codegen_search=codegen_search,
     )
 
 

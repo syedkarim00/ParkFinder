@@ -28,6 +28,24 @@ When Chromium opens, use the Ontario Parks site normally and complete the search
 - `results.png` — a screenshot of the results page.
 - `browser-state.json` — browser cookies/local storage for later runs.
 
+
+## Run your recorded Algonquin/Kiosk codegen flow
+
+The Playwright codegen selectors you provided are now available as an optional automation mode. This still keeps Ontario Parks access inside Chromium and still captures responses via `page.on("response")`; it just replays your recorded browser clicks instead of waiting for manual input.
+
+```bash
+python3 -m parkfinder.playwright_recorder \
+  --use-codegen-flow \
+  --park "Algonquin - Kiosk" \
+  --arrival 2026-06-05 \
+  --departure 2026-06-07 \
+  --equipment "Single Tent" \
+  --click-resource -2147474195 \
+  --click-resource -2147474194
+```
+
+If Ontario Parks changes labels or layout, regenerate selectors with `python3 -m playwright codegen https://reservations.ontarioparks.ca/` and update the replay flow.
+
 ## Optional local UI
 
 ```bash
