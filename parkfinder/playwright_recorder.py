@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from .ontario import summarize_captured_text
+
 START_URL = "https://reservations.ontarioparks.ca/"
 DEFAULT_KEYWORDS = (
     "availability",
@@ -21,10 +23,10 @@ DEFAULT_KEYWORDS = (
 @dataclass(frozen=True)
 class RecorderConfig:
     start_url: str = START_URL
-    state_path: Path = Path("state/ontario-parks-browser-state.json")
-    output_path: Path = Path("captures/captured-responses.json")
-    body_text_path: Path = Path("captures/latest-page-text.txt")
-    screenshot_dir: Path = Path("screenshots")
+    output_path: Path = Path("captured-responses.json")
+    body_text_path: Path = Path("results-text.txt")
+    screenshot_path: Path = Path("results.png")
+    state_path: Path = Path("browser-state.json")
     headless: bool = False
     slow_mo_ms: int = 150
     timeout_ms: int = 60000
@@ -38,13 +40,13 @@ def is_interesting_url(url: str, keywords: Iterable[str] = DEFAULT_KEYWORDS) -> 
 
 
 def summarize_visible_text(body_text: str) -> dict[str, Any]:
-    lower_text = body_text.lower()
-    unavailable_words = ("no availability", "no sites", "unavailable")
-    available_words = ("available", "site", "campsite")
+    summary = summarize_captured_text("visible-page-text", body_text)
     return {
-        "has_available_word": any(word in lower_text for word in available_words),
-        "has_no_availability_word": any(word in lower_text for word in unavailable_words),
-        "text_sample": body_text[:3000],
+        "has_available_word": summary.has_available_word,
+        "has_no_availability_word": summary.has_no_availability_word,
+        "text_sample": summary.text_sample,
+        "water_score": summary.water_score,
+        "water_reasons": summary.water_reasons,
     }
 
 
@@ -61,20 +63,19 @@ def load_playwright():
 
 
 def run_recorder(config: RecorderConfig) -> dict[str, Any]:
-    """Open Ontario Parks in a real browser and capture natural page/network output.
+    """Use Chromium as the only process that accesses Ontario Parks.
 
-    This intentionally does not call hidden reservation endpoints directly. You complete the search in
-    the browser, and the recorder saves screenshots, visible page text, storage state, and JSON
-    responses that the browser naturally received.
+    The recorder opens the public Ontario Parks site in a headed browser, waits for you to complete a
+    normal search, captures JSON responses the browser naturally received via page.on("response"),
+    and writes the visible result text plus screenshot to disk. It does not call hidden API URLs from
+    Python HTTP clients.
     """
     sync_playwright, PlaywrightTimeoutError = load_playwright()
     captured: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
 
-    config.output_path.parent.mkdir(parents=True, exist_ok=True)
-    config.body_text_path.parent.mkdir(parents=True, exist_ok=True)
-    config.screenshot_dir.mkdir(parents=True, exist_ok=True)
-    config.state_path.parent.mkdir(parents=True, exist_ok=True)
+    for path in (config.output_path, config.body_text_path, config.screenshot_path, config.state_path):
+        path.parent.mkdir(parents=True, exist_ok=True)
 
     def handle_response(response):
         if not is_interesting_url(response.url, config.keywords):
@@ -113,21 +114,20 @@ def run_recorder(config: RecorderConfig) -> dict[str, Any]:
 
         try:
             response = page.goto(config.start_url, wait_until="domcontentloaded", timeout=config.timeout_ms)
-            page.screenshot(path=str(config.screenshot_dir / "debug-home.png"), full_page=True)
             print("Page status:", response.status if response else "No response")
             print("Page title:", page.title())
             if config.manual:
-                input("Complete an Ontario Parks search in the browser, then press Enter here to capture results...")
+                input("Complete an Ontario Parks search in Chromium, then press Enter here to save results...")
             else:
                 page.wait_for_load_state("networkidle", timeout=config.timeout_ms)
 
-            page.screenshot(path=str(config.screenshot_dir / "debug-results.png"), full_page=True)
+            page.screenshot(path=str(config.screenshot_path), full_page=True)
             body_text = page.locator("body").inner_text(timeout=10000)
             config.body_text_path.write_text(body_text, encoding="utf-8")
             context.storage_state(path=str(config.state_path))
         except PlaywrightTimeoutError as exc:
-            page.screenshot(path=str(config.screenshot_dir / "timeout-debug.png"), full_page=True)
             errors.append({"error": f"Timed out: {exc}"})
+            page.screenshot(path=str(config.screenshot_path), full_page=True)
         finally:
             context.close()
             browser.close()
@@ -145,13 +145,13 @@ def run_recorder(config: RecorderConfig) -> dict[str, Any]:
 
 def parse_args() -> RecorderConfig:
     parser = argparse.ArgumentParser(
-        description="Open Ontario Parks in Playwright and capture visible page text plus natural JSON network responses."
+        description="Open Ontario Parks in headed Chromium and capture natural JSON responses plus visible results."
     )
     parser.add_argument("--start-url", default=START_URL)
-    parser.add_argument("--state", type=Path, default=Path("state/ontario-parks-browser-state.json"))
-    parser.add_argument("--output", type=Path, default=Path("captures/captured-responses.json"))
-    parser.add_argument("--body-text", type=Path, default=Path("captures/latest-page-text.txt"))
-    parser.add_argument("--screenshots", type=Path, default=Path("screenshots"))
+    parser.add_argument("--output", type=Path, default=Path("captured-responses.json"))
+    parser.add_argument("--body-text", type=Path, default=Path("results-text.txt"))
+    parser.add_argument("--screenshot", type=Path, default=Path("results.png"))
+    parser.add_argument("--state", type=Path, default=Path("browser-state.json"))
     parser.add_argument("--headless", action="store_true", help="Run without a visible browser window; manual mode is disabled.")
     parser.add_argument("--slow-mo", type=int, default=150)
     parser.add_argument("--timeout", type=int, default=60000)
@@ -159,10 +159,10 @@ def parse_args() -> RecorderConfig:
     args = parser.parse_args()
     return RecorderConfig(
         start_url=args.start_url,
-        state_path=args.state,
         output_path=args.output,
         body_text_path=args.body_text,
-        screenshot_dir=args.screenshots,
+        screenshot_path=args.screenshot,
+        state_path=args.state,
         headless=args.headless,
         slow_mo_ms=args.slow_mo,
         timeout_ms=args.timeout,
@@ -176,6 +176,7 @@ def main() -> None:
     payload = run_recorder(config)
     print(f"Captured {payload['responseCount']} JSON response(s) to {config.output_path}")
     print(f"Saved visible page text to {config.body_text_path}")
+    print(f"Saved screenshot to {config.screenshot_path}")
     print(f"Saved browser state to {config.state_path}")
 
 

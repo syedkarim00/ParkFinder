@@ -4,6 +4,10 @@ __pycache__/
 .venv/
 .DS_Store
 results/*.json
+captured-responses.json
+results-text.txt
+results.png
+browser-state.json
 captures/
 screenshots/
 state/
