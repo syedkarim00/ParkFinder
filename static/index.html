@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ParkFinder – Ontario Parks waterfront weekend scanner</title>
+  <title>ParkFinder – Ontario Parks summer weekend scanner</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -11,14 +11,21 @@
     <section class="hero">
       <div>
         <p class="eyebrow">Ontario Parks availability helper</p>
-        <h1>Find Friday–Sunday campsites with a waterfront bias.</h1>
-        <p class="lede">ParkFinder checks Ontario Parks reservation API availability for every complete Friday-to-Sunday weekend in your summer range, decodes campsite attributes, and ranks sites that appear adjacent to lakes, rivers, shorelines, beaches, or other bodies of water.</p>
+        <h1>Scan every park for every summer weekend.</h1>
+        <p class="lede">ParkFinder scrapes the Ontario Parks reservation map tree, checks each complete Friday-to-Sunday weekend in June, July, August, and September, then lists the available campsites with a waterfront/near-water score.</p>
       </div>
       <a class="official" href="https://reservations.ontarioparks.ca/" target="_blank" rel="noreferrer">Open official reservation site</a>
     </section>
 
     <section class="panel">
       <form id="search-form">
+        <fieldset>
+          <legend>What should ParkFinder scan?</legend>
+          <label class="radio"><input type="radio" name="scanMode" value="all" checked /> Every reservable Ontario Parks campground</label>
+          <label class="radio"><input type="radio" name="scanMode" value="selected" /> Only the pasted/preset parks below</label>
+          <p class="hint">The all-parks scan uses the reservation system's root map and follows its region → park → campground links automatically, so you do not need to search each park manually.</p>
+        </fieldset>
+
         <div class="grid two">
           <label>Start date
             <input id="startDate" name="startDate" type="date" required />
@@ -28,13 +35,12 @@
           </label>
         </div>
 
-        <label>Ontario Parks result URLs or resourceLocationIds
-          <textarea id="locations" name="locations" rows="6" placeholder="Paste one official result URL per line after choosing a park on reservations.ontarioparks.ca, or enter rows like: Bon Echo|-214748....|-214748...."></textarea>
+        <label>Optional Ontario Parks result URLs or resourceLocationIds
+          <textarea id="locations" name="locations" rows="5" placeholder="Only needed for selected-parks scans. Paste one official result URL per line, or enter rows like: Bon Echo|-214748....|-214748...."></textarea>
         </label>
-        <p class="hint">Tip: the most reliable workflow is to choose parks on the official reservation site once, paste their result URLs here, then let ParkFinder scan all Friday–Sunday weekends.</p>
 
         <fieldset>
-          <legend>Optional presets</legend>
+          <legend>Optional selected-park presets</legend>
           <div id="presets" class="chips"></div>
         </fieldset>
 
@@ -51,15 +57,20 @@
               <input id="subEquipmentId" name="subEquipmentId" value="-32766" />
             </label>
             <label>Max results
-              <input id="maxResults" name="maxResults" type="number" value="200" min="1" max="1000" />
+              <input id="maxResults" name="maxResults" type="number" value="5000" min="1" max="50000" />
             </label>
           </div>
           <label class="inline"><input id="waterFirst" type="checkbox" checked /> Only show sites with water-adjacent signals</label>
-          <p class="hint">Defaults mirror common car-camping searches. If your equipment differs, start a matching official search and paste that URL so the generated booking links are close to your needs.</p>
+          <p class="hint">Disable the water filter to see all available campsites. Official booking pages should still be used to verify campsite maps and final availability.</p>
         </details>
 
-        <button id="submit" type="submit">Scan summer weekends</button>
+        <button id="submit" type="submit">Scan June–September weekends</button>
       </form>
+    </section>
+
+    <section class="panel note">
+      <h2>Can this run from GitHub Pages?</h2>
+      <p>A GitHub Pages-only site cannot directly scrape the Ontario Parks API because it has no backend and browser CORS rules can block cross-origin API reads. This app is still web-based, but the scraper runs locally in Python; you open the local website at <code>http://127.0.0.1:8000</code>.</p>
     </section>
 
     <section id="status" class="status" hidden></section>

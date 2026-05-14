@@ -18,12 +18,15 @@ async function loadPresets() {
       <input type="checkbox" name="preset" value="${escapeHtml(preset.id)}" />
       ${escapeHtml(preset.name)}
     </label>
-  `).join('') || '<p class="hint">No presets configured. Paste official result URLs above.</p>';
+  `).join('') || '<p class="hint">No presets configured. Use the all-parks scan or paste official result URLs above.</p>';
 }
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  setStatus('Scanning Ontario Parks. This can take a while because each site/weekend is checked politely...', false);
+  const scanMode = new FormData(form).get('scanMode');
+  setStatus(scanMode === 'all'
+    ? 'Scanning every Ontario Parks campground for every Friday–Sunday weekend. This can take several minutes...'
+    : 'Scanning selected parks and weekends...', false);
   resultsEl.innerHTML = '';
   summaryEl.hidden = true;
   const data = Object.fromEntries(new FormData(form).entries());
@@ -45,9 +48,9 @@ form.addEventListener('submit', async (event) => {
 
 function render(payload) {
   const count = payload.results.length;
-  setStatus(`Search complete: ${count} available waterfront-ranked campsite${count === 1 ? '' : 's'} found.`, false);
+  setStatus(`Search complete: ${count} available campsite${count === 1 ? '' : 's'} found.`, false);
   summaryEl.hidden = false;
-  summaryEl.innerHTML = `<strong>${payload.weekends.length}</strong> Friday–Sunday weekends checked: ${payload.weekends.map(w => `${w.start} → ${w.end}`).join(', ')}`;
+  summaryEl.innerHTML = `<strong>${payload.weekends.length}</strong> Friday–Sunday weekends checked in <strong>${escapeHtml(payload.mode)}</strong> mode: ${payload.weekends.map(w => `${w.start} → ${w.end}`).join(', ')}`;
   resultsEl.innerHTML = payload.results.map(result => `
     <article class="card">
       <div>
@@ -60,10 +63,10 @@ function render(payload) {
       </div>
       <a class="official" href="${escapeHtml(result.booking_url)}" target="_blank" rel="noreferrer">Book/check official page</a>
       <dl class="attrs">
-        ${Object.entries(result.attributes).slice(0, 28).map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(Array.isArray(value) ? value.join(', ') : value)}</dd></div>`).join('')}
+        ${Object.entries(result.attributes).slice(0, 28).map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(Array.isArray(value) ? value.join(' › ') : value)}</dd></div>`).join('')}
       </dl>
     </article>
-  `).join('') || '<p class="hint">No matching available sites were returned. Try disabling the water-only filter or adding more parks.</p>';
+  `).join('') || '<p class="hint">No matching available sites were returned. Try disabling the water-only filter or checking official availability.</p>';
 }
 
 function setStatus(message, isError) {

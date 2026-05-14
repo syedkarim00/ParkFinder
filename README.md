@@ -1,28 +1,37 @@
 # ParkFinder
 
-ParkFinder is a local web application for scanning the public Ontario Parks reservation API for available **Friday-to-Sunday** campsite stays across a summer date range. It ranks matching sites using campsite metadata that suggests adjacency to bodies of water, because waterfront or near-water sites are preferred.
+ParkFinder is a local web application for scraping the Ontario Parks reservation system for available **Friday-to-Sunday** campsite stays across June, July, August, and September. It can scan the reservation system's root map tree so you do **not** need to search each park or each weekend manually.
 
-## Why this is local
+The app ranks matching sites using campsite metadata that suggests adjacency to bodies of water, because waterfront or near-water sites are preferred.
 
-Ontario Parks reservations must still be completed on the official website. ParkFinder only helps you search and rank public availability data, then sends you to the official booking result URL.
-
-## Run
+## Run the web app
 
 ```bash
 python3 -m parkfinder.server
 ```
 
-Open <http://127.0.0.1:8000>.
+Open <http://127.0.0.1:8000> and click **Scan June–September weekends**. By default it scans every reservable Ontario Parks campground for every complete Friday-to-Sunday weekend between June 1 and September 30 of the selected year.
 
-## How to search
+## Why this is not pure GitHub Pages
 
-1. Open <https://reservations.ontarioparks.ca/>.
-2. Start a normal campsite search for a park/campground you care about.
-3. Copy the official results URL from the browser address bar.
-4. Paste one or more results URLs into ParkFinder.
-5. Choose a summer date range, then scan.
+A GitHub Pages-only site cannot reliably run the scraper because Pages is static hosting: it has no Python backend, and browser CORS rules can block cross-origin reads of the Ontario Parks reservation API. ParkFinder therefore runs the scraper locally in Python and serves an easy browser UI from `http://127.0.0.1:8000`.
 
-ParkFinder automatically converts the date range into complete Friday-to-Sunday weekends and checks each campsite's availability for those two-night stays.
+You can still publish generated results to GitHub Pages after running the CLI below, but the live scraping step must run somewhere with backend code.
+
+## Run a full summer scan from the command line
+
+```bash
+python3 -m parkfinder.scan --year 2026 --output results/ontario-parks-2026.json
+```
+
+Use `--include-all-sites` if you want every available campsite rather than only those with water-adjacent metadata signals.
+
+## What it scans
+
+- The app starts at the Ontario Parks reservation root map ID used by the public reservation UI.
+- It recursively follows region, park, campground, and sub-map links returned by `/api/maps/mapdatabyid`.
+- For each terminal campsite map and each Friday-to-Sunday weekend, it collects available campsite resources from `resourceAvailabilityMap`.
+- Selected-park mode is still available for pasted official result URLs or preset parks.
 
 ## Water-adjacent ranking
 
@@ -36,7 +45,7 @@ This is heuristic rather than a guarantee. Always verify the official campsite m
 
 ## Notes and limitations
 
-- The app uses the publicly observed Ontario Parks endpoints `/api/attribute/filterable`, `/api/resourcelocation/resources`, and `/api/availability/resourcestatus`.
-- Some networks block automated access to the reservation host. If a search fails with a network error, run ParkFinder on your personal network or paste fewer parks and retry.
-- Preset park IDs in `data/parks.json` are convenience examples from publicly shared result URLs. Pasted official URLs are more reliable because Ontario Parks can change IDs or maps over time.
-- Be respectful: search only the parks you need and keep the default request pause enabled.
+- Ontario Parks reservations must still be completed on the official website. ParkFinder only searches and ranks public availability data, then links you back to the official booking page.
+- Some networks block automated access to the reservation host. If a search fails with a network error, run ParkFinder on your personal network and retry.
+- The full all-parks scan can take several minutes because it checks many campground maps for every summer weekend. Keep the default request pause enabled to be respectful.
+- Reservations are subject to Ontario Parks rules and booking windows; future weekends beyond the reservation window may not be bookable yet.
