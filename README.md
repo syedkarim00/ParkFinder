@@ -12,11 +12,11 @@ python3 -m parkfinder.server
 
 Open <http://127.0.0.1:8000> and click **Scan June–September weekends**. By default it scans every reservable Ontario Parks campground for every complete Friday-to-Sunday weekend between June 1 and September 30 of the selected year.
 
-## Why this is not pure GitHub Pages
+## Why you might see HTTP 403
 
-A GitHub Pages-only site cannot reliably run the scraper because Pages is static hosting: it has no Python backend, and browser CORS rules can block cross-origin reads of the Ontario Parks reservation API. ParkFinder therefore runs the scraper locally in Python and serves an easy browser UI from `http://127.0.0.1:8000`.
+When you click **Scan**, your browser calls the local ParkFinder server at `http://127.0.0.1:8000`, and that Python server requests availability data from Ontario Parks. An HTTP 403 means those Ontario Parks requests were refused by Ontario Parks or by a proxy between your computer and Ontario Parks. Common causes include automated-traffic protection, VPN/corporate proxy filtering, or reservation-site session checks.
 
-You can still publish generated results to GitHub Pages after running the CLI below, but the live scraping step must run somewhere with backend code.
+If you see 403, try running ParkFinder from your normal home network, disable VPN/proxy software, and confirm <https://reservations.ontarioparks.ca/> opens normally in the same browser.
 
 ## Run a full summer scan from the command line
 

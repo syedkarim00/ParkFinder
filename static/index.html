@@ -69,8 +69,8 @@
     </section>
 
     <section class="panel note">
-      <h2>Can this run from GitHub Pages?</h2>
-      <p>A GitHub Pages-only site cannot directly scrape the Ontario Parks API because it has no backend and browser CORS rules can block cross-origin API reads. This app is still web-based, but the scraper runs locally in Python; you open the local website at <code>http://127.0.0.1:8000</code>.</p>
+      <h2>Why might the scan show HTTP 403?</h2>
+      <p>The scan button asks this local Python server to request Ontario Parks availability data. A 403 means Ontario Parks, or a network proxy between you and Ontario Parks, refused those scraper requests. If that happens, try your normal home network, disable VPN/proxy software, and confirm the official reservation website opens in your browser.</p>
     </section>
 
     <section id="status" class="status" hidden></section>

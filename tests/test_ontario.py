@@ -1,6 +1,8 @@
 import unittest
 from datetime import date
 
+from parkfinder.server import explain_error
+
 from parkfinder.ontario import (
     Weekend,
     first_availability,
@@ -40,6 +42,12 @@ class OntarioHelpersTest(unittest.TestCase):
     def test_resources_by_id_accepts_resource_id(self):
         resources = resources_by_id({"resourcesOnMap": [{"resourceId": -1, "localizedValues": [{"name": "1"}]}]})
         self.assertIn("-1", resources)
+
+
+    def test_explain_error_describes_ontario_parks_403(self):
+        message = explain_error(Exception("HTTP Error 403: Forbidden"))
+        self.assertIn("Ontario Parks returned HTTP 403 Forbidden", message)
+        self.assertIn("VPN/proxy", message)
 
     def test_search_all_parks_walks_map_tree(self):
         class FakeClient:

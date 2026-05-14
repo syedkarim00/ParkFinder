@@ -75,7 +75,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "results": result_dicts(results),
             })
         except Exception as exc:
-            self.send_json({"error": str(exc)}, status=400)
+            self.send_json({"error": explain_error(exc)}, status=400)
 
     def read_json(self):
         length = int(self.headers.get("Content-Length", "0"))
@@ -94,6 +94,22 @@ def load_presets():
     if not path.exists():
         return []
     return json.loads(path.read_text())
+
+
+def explain_error(exc: Exception) -> str:
+    message = str(exc)
+    lowered = message.lower()
+    if "403" in message or "forbidden" in lowered:
+        return (
+            "Ontario Parks returned HTTP 403 Forbidden while ParkFinder was trying to scrape availability. "
+            "That means the request reached either Ontario Parks or an outbound network proxy, but that service refused it. "
+            "Common causes are Ontario Parks blocking automated/datacenter traffic, a VPN/corporate proxy blocking the reservation host, "
+            "or the reservation system requiring browser/session checks that this local scraper does not have. "
+            "Try running ParkFinder from your normal home network, disabling VPN/proxy software, and confirming "
+            "https://reservations.ontarioparks.ca/ opens in the same browser. Original error: "
+            f"{message}"
+        )
+    return message
 
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", 8000), Handler)
