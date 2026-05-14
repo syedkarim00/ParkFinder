@@ -1,0 +1,23 @@
+[
+  {
+    "id": "sandbanks",
+    "name": "Sandbanks Provincial Park",
+    "resourceLocationId": "-2147483549",
+    "mapId": "-2147483234",
+    "source": "Publicly shared Ontario Parks result URL"
+  },
+  {
+    "id": "mcrae-point",
+    "name": "McRae Point Provincial Park",
+    "resourceLocationId": "-2147483586",
+    "mapId": "-2147483380",
+    "source": "Publicly shared Ontario Parks result URL"
+  },
+  {
+    "id": "voyageur",
+    "name": "Voyageur Provincial Park",
+    "resourceLocationId": "-2147483601",
+    "mapId": "-2147483434",
+    "source": "Publicly shared Ontario Parks result URL"
+  }
+]

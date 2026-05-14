@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ParkFinder – Ontario Parks Playwright recorder</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Ontario Parks availability helper</p>
+        <h1>Capture a real Ontario Parks browser search.</h1>
+        <p class="lede">ParkFinder now uses Playwright as the only thing that accesses Ontario Parks. It launches headed Chromium, lets you complete a normal search, and saves the browser's JSON responses, page text, and screenshot.</p>
+      </div>
+      <a class="official" href="https://reservations.ontarioparks.ca/" target="_blank" rel="noreferrer">Open official reservation site</a>
+    </section>
+
+    <section class="panel recorder">
+      <h2>Run the recorder</h2>
+      <p>Run these commands in your terminal. When Chromium opens, complete the Ontario Parks search manually. Then return to the terminal and press Enter to save the captured results.</p>
+      <pre><code>python3 -m pip install -r requirements.txt
+python3 -m playwright install chromium
+python3 -m parkfinder.playwright_recorder</code></pre>
+      <p class="hint">The recorder writes <code>captured-responses.json</code>, <code>results-text.txt</code>, <code>results.png</code>, and <code>browser-state.json</code>.</p>
+    </section>
+
+    <section class="panel recorder">
+      <h2>Replay your codegen flow</h2>
+      <p>The Algonquin - Kiosk / June 5-7 / Single Tent selectors you recorded can be replayed with:</p>
+      <pre><code>python3 -m parkfinder.playwright_recorder \
+  --use-codegen-flow \
+  --park "Algonquin - Kiosk" \
+  --arrival 2026-06-05 \
+  --departure 2026-06-07 \
+  --equipment "Single Tent" \
+  --click-resource -2147474195 \
+  --click-resource -2147474194</code></pre>
+      <p class="hint">If it is flaky, slow it down with <code>--step-pause-ms 1500 --settle-ms 4000</code>. To repeat weekends, add <code>--weekend-count 3</code>; to repeat parks, add one or more <code>--extra-park "Park Name"</code> flags.</p>
+    </section>
+
+    <section class="panel note">
+      <h2>No direct Python scraping</h2>
+      <p>This version does not call hidden Ontario Parks API URLs from Python HTTP clients. The Python code only listens to responses received by the Playwright-controlled browser via <code>page.on("response")</code>.</p>
+    </section>
+
+    <section class="panel note">
+      <h2>If you see net::ERR_CONNECTION_REFUSED</h2>
+      <p>The local UI server is not running or you opened this file directly. Run <code>python3 -m parkfinder.server</code>, keep that terminal open, and browse to <code>http://127.0.0.1:8000</code>.</p>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
