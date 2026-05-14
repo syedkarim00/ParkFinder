@@ -45,6 +45,12 @@ class OntarioHelpersTest(unittest.TestCase):
         self.assertIn("-1", resources)
 
 
+
+    def test_explain_error_describes_connection_refused(self):
+        message = explain_error(Exception("[Errno 111] Connection refused"))
+        self.assertIn("net::ERR_CONNECTION_REFUSED", message)
+        self.assertIn("python3 -m parkfinder.server", message)
+
     def test_explain_error_describes_ontario_parks_403(self):
         message = explain_error(Exception("HTTP Error 403: Forbidden"))
         self.assertIn("Ontario Parks returned HTTP 403 Forbidden", message)

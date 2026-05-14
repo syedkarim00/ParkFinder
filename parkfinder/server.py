@@ -25,6 +25,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/health":
+            self.send_json({"ok": True, "message": "ParkFinder server is running."})
+            return
         if parsed.path == "/api/presets":
             self.send_json(load_presets())
             return
@@ -99,6 +102,14 @@ def load_presets():
 def explain_error(exc: Exception) -> str:
     message = str(exc)
     lowered = message.lower()
+    if "connection refused" in lowered or "errno 111" in lowered:
+        return (
+            "ParkFinder could not connect to a required local or remote service. "
+            "If this happened in the browser with net::ERR_CONNECTION_REFUSED, the local Python server is not running, "
+            "you opened static/index.html directly instead of http://127.0.0.1:8000, or the server stopped while the scan was running. "
+            "Start it with `python3 -m parkfinder.server` and open http://127.0.0.1:8000. Original error: "
+            f"{message}"
+        )
     if "403" in message or "forbidden" in lowered:
         return (
             "Ontario Parks returned HTTP 403 Forbidden while ParkFinder was trying to scrape availability. "

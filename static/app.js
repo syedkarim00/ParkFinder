@@ -8,17 +8,35 @@ const thisYear = new Date().getFullYear();
 document.querySelector('#startDate').value = `${thisYear}-06-01`;
 document.querySelector('#endDate').value = `${thisYear}-09-30`;
 
-loadPresets();
+if (location.protocol === 'file:') {
+  setStatus('ParkFinder must be opened from the local Python server, not directly as a file. Run `python3 -m parkfinder.server`, then open http://127.0.0.1:8000.', true);
+} else {
+  loadPresets();
+}
+
+async function apiFetch(path, options) {
+  try {
+    const response = await fetch(path, options);
+    return response;
+  } catch (error) {
+    throw new Error(`Cannot reach the ParkFinder server at ${location.origin}. If the browser shows net::ERR_CONNECTION_REFUSED, start the server with \`python3 -m parkfinder.server\`, keep that terminal window open, and browse to http://127.0.0.1:8000 instead of opening static/index.html directly.`);
+  }
+}
 
 async function loadPresets() {
-  const response = await fetch('/api/presets');
-  const presets = await response.json();
-  presetsEl.innerHTML = presets.map(preset => `
-    <label class="chip" title="${escapeHtml(preset.source || '')}">
-      <input type="checkbox" name="preset" value="${escapeHtml(preset.id)}" />
-      ${escapeHtml(preset.name)}
-    </label>
-  `).join('') || '<p class="hint">No presets configured. Use the all-parks scan or paste official result URLs above.</p>';
+  try {
+    const response = await apiFetch('/api/presets');
+    const presets = await response.json();
+    presetsEl.innerHTML = presets.map(preset => `
+      <label class="chip" title="${escapeHtml(preset.source || '')}">
+        <input type="checkbox" name="preset" value="${escapeHtml(preset.id)}" />
+        ${escapeHtml(preset.name)}
+      </label>
+    `).join('') || '<p class="hint">No presets configured. Use the all-parks scan or paste official result URLs above.</p>';
+  } catch (error) {
+    presetsEl.innerHTML = '<p class="hint">Could not load presets because the local server is unreachable.</p>';
+    setStatus(error.message, true);
+  }
 }
 
 form.addEventListener('submit', async (event) => {
@@ -33,7 +51,7 @@ form.addEventListener('submit', async (event) => {
   data.waterFirst = document.querySelector('#waterFirst').checked;
   data.presetIds = [...document.querySelectorAll('input[name="preset"]:checked')].map(input => input.value);
   try {
-    const response = await fetch('/api/search', {
+    const response = await apiFetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

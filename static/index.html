@@ -17,6 +17,11 @@
       <a class="official" href="https://reservations.ontarioparks.ca/" target="_blank" rel="noreferrer">Open official reservation site</a>
     </section>
 
+    <section class="panel note">
+      <h2>If Scan says net::ERR_CONNECTION_REFUSED</h2>
+      <p>Your browser cannot reach the local ParkFinder Python server. Run <code>python3 -m parkfinder.server</code>, keep that terminal open, and browse to <code>http://127.0.0.1:8000</code>; do not open <code>static/index.html</code> directly.</p>
+    </section>
+
     <section class="panel recorder">
       <h2>Recommended first step: browser recorder</h2>
       <p>Run this in your terminal, complete a normal Ontario Parks search in the browser that opens, then press Enter in the terminal. This avoids starting with brittle direct API calls and gives us real selectors/JSON to automate next.</p>

@@ -13,6 +13,22 @@ python3 -m parkfinder.server
 Open <http://127.0.0.1:8000> and click **Scan June–September weekends**. By default it scans every reservable Ontario Parks campground for every complete Friday-to-Sunday weekend between June 1 and September 30 of the selected year.
 
 
+
+## Why you might see `net::ERR_CONNECTION_REFUSED`
+
+`net::ERR_CONNECTION_REFUSED` means your browser could not connect to the local ParkFinder server. This is different from an Ontario Parks HTTP 403. The usual causes are:
+
+- The Python server is not running. Start it with `python3 -m parkfinder.server` and keep that terminal window open.
+- You opened `static/index.html` directly from your filesystem. Instead, open <http://127.0.0.1:8000>.
+- The server crashed or was stopped during a long scan. Check the terminal running `python3 -m parkfinder.server` for a traceback.
+- Port 8000 is already in use by another app. Stop the other app, then restart ParkFinder.
+
+You can verify the server is reachable with:
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
 ## Recommended Playwright recorder workflow
 
 The most reliable first step is the browser recorder, not the direct API scanner. It opens the real Ontario Parks site in Chromium, lets you complete a normal search, captures screenshots, saves visible page text, saves browser storage/cookies, and records JSON network responses that the browser naturally receives.
